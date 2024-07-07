@@ -26,7 +26,7 @@ def employees_who_worked_together_most(file_path):
     
     if pair_employees is not None:
         id_first, id_second = pair_employees
-        return f"Employees {id_first} and {id_second} are the pair of employees who have worked together on common projects for the longest period of time: {years} years, {months} months, and {days} days."
+        return f"Employees {id_first} and {id_second} are the pair of coworkers who have worked together on common projects for the longest period of time: {years} years, {months} months, and {days} days."
     else:
         return "No valid pairs found."
 
