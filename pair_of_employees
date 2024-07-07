@@ -57,13 +57,12 @@ def date_format(date_str):
         '%m.%d.%Y',
         '%d.%m.%Y'
     ]
-    stripped_date = date_str
-    if stripped_date == 'NULL':
+    if date_str == 'NULL':
         return date.today()
     
     for format in date_formats:
         try:
-            return datetime.strptime(stripped_date, format).date()
+            return datetime.strptime(date_str, format).date()
         except ValueError:
             continue
     
