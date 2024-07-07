@@ -1,0 +1,78 @@
+import csv
+from datetime import datetime, date
+from collections import defaultdict
+from itertools import combinations
+
+csv_file_path = 'csvfile.csv'
+
+def load_csv_file(csv_file):
+    projects = defaultdict(list)
+    with open(csv_file, 'r') as employees_projects:
+        csv_reader = csv.DictReader(employees_projects)
+        for row in csv_reader:
+            projects[int(row['ProjectID'].strip())].append((
+                int(row['EmpID'].strip()),
+                date_format(row['DateFrom'].strip()),
+                date_format(row['DateTo'].strip())
+            ))
+    return projects
+
+def employees_who_worked_together_most(file_path):
+    projects = load_csv_file(file_path)
+    
+    pair_employees, matching_days = fetch_results(projects)
+    
+    years, months, days = convert_days_to_ymd(matching_days)
+    
+    if pair_employees is not None:
+        id_first, id_second = pair_employees
+        return f"The pair of employees who worked together the longest are Employee {id_first} and Employee {id_second} with an overlap of {years} years, {months} months, and {days} days."
+    else:
+        return "No valid pairs found."
+
+def fetch_results(projects):
+    max_matching_days = 0
+    employees_match = None
+    
+    for project in projects.values():
+        for (id_first, first_start_date, first_end_date), (id_second, second_start_date, second_end_date) in combinations(project, 2):
+            matching_days = employees_matching_days(first_start_date, first_end_date, second_start_date, second_end_date)
+            if matching_days > max_matching_days:
+                max_matching_days = matching_days
+                employees_match = (id_first, id_second)
+    
+    return employees_match, max_matching_days
+
+def employees_matching_days(first_start_date, first_end_date, second_start_date, second_end_date):
+    return max(0, (min(first_end_date, second_end_date) - max(first_start_date, second_start_date)).days)
+
+def date_format(date_str):
+    date_formats = [
+        '%Y-%m-%d',
+        '%m/%d/%Y',
+        '%m-%d-%Y',
+        '%d-%m-%Y',
+        '%Y/%m/%d',
+        '%d/%m/%Y',
+        '%m.%d.%Y',
+        '%d.%m.%Y'
+    ]
+    stripped_date = date_str
+    if stripped_date == 'NULL':
+        return date.today()
+    
+    for format in date_formats:
+        try:
+            return datetime.strptime(stripped_date, format).date()
+        except ValueError:
+            continue
+    
+    raise ValueError(f"Date format not recognized for date: {date_str}")
+
+def convert_days_to_ymd(days):
+    years = days // 365
+    months = (days % 365) // 30
+    remaining_days = (days % 365) % 30
+    return years, months, remaining_days
+
+print(employees_who_worked_together_most(csv_file_path))
