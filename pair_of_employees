@@ -1,71 +1,68 @@
 import csv
-from datetime import datetime, date
+from datetime import date
 from collections import defaultdict
 from itertools import combinations
+from dateutil import parser
 
 csv_file_path = 'csvfile.csv'
 
+def parse_date(date_str):
+    if date_str == 'NULL':
+        return date.today()
+    try:
+        return parser.parse(date_str).date()
+    except (ValueError, OverflowError):
+        raise ValueError(f"Date format not recognized for date: {date_str}")
+
 def load_csv_file(csv_file):
-    projects = defaultdict(list)
+    projects = {defaultdict(list)}
     with open(csv_file, 'r') as employees_projects:
         csv_reader = csv.DictReader(employees_projects)
         for row in csv_reader:
             projects[int(row['ProjectID'].strip())].append((
                 int(row['EmpID'].strip()),
-                date_format(row['DateFrom'].strip()),
-                date_format(row['DateTo'].strip())
+                parse_date(row['DateFrom'].strip()),
+                parse_date(row['DateTo'].strip())
             ))
     return projects
 
-def employees_who_worked_together_most(file_path):
-    projects = load_csv_file(file_path)
-    
-    pair_employees, matching_days = fetch_employees_match(projects)
-    
-    years, months, days = convert_days_to_year_moth_day(matching_days)
-    
-    if pair_employees is not None:
-        id_first, id_second = pair_employees
-        return f"Employees {id_first} and {id_second} are the pair of coworkers who have worked together on common projects for the longest period of time: {years} years, {months} months, and {days} days."
-    else:
-        return "No coworkers match found."
-
-def fetch_employees_match(projects):
-    max_matching_days, employees_match = max(
-                ((min(first_end_date, second_end_date) - max(first_start_date, second_start_date)).days, (id_first, id_second))
-                    for project in projects.values()
-                    for (id_first, first_start_date, first_end_date), (id_second, second_start_date, second_end_date)
-                    in combinations(project, 2)
-    )
-    
-    return employees_match, max_matching_days
-
-def date_format(date_str):
-    date_formats = [
-        '%Y-%m-%d',
-        '%m/%d/%Y',
-        '%m-%d-%Y',
-        '%d-%m-%Y',
-        '%Y/%m/%d',
-        '%d/%m/%Y',
-        '%m.%d.%Y',
-        '%d.%m.%Y'
-    ]
-    if date_str == 'NULL':
-        return date.today()
-    
-    for format in date_formats:
-        try:
-            return datetime.strptime(date_str, format).date()
-        except ValueError:
-            continue
-    
-    raise ValueError(f"Date format not recognized for date: {date_str}")
-
-def convert_days_to_year_moth_day(days):
+def convert_days_to_ymd(days):
     years = days // 365
     months = (days % 365) // 30
     remaining_days = (days % 365) % 30
     return years, months, remaining_days
 
-print(employees_who_worked_together_most(csv_file_path))
+def fetch_employees_match(projects):
+    employees_match = [
+        (id_first, id_second, project_id, (min(first_end_date, second_end_date) - max(first_start_date, second_start_date)).days)
+        for project_id, project in projects.items()
+        for (id_first, first_start_date, first_end_date), (id_second, second_start_date, second_end_date) in combinations(project, 2)
+        if (min(first_end_date, second_end_date) - max(first_start_date, second_start_date)).days > 0
+    ]
+    top_pair = max(employees_match)
+
+    top_pair_projects = list(filter(
+        lambda x: (x[0], x[1]) == top_pair[:2] or (x[1], x[0]) == top_pair[:2], 
+        employees_match
+    ))
+    print(top_pair_projects)
+    
+    return top_pair, top_pair_projects
+
+def employees_who_worked_together_most(file_path):
+    projects = load_csv_file(file_path)
+    top_pair, common_projects = fetch_employees_match(projects)
+    
+    if top_pair is not None:
+        id_first, id_second, proj_id, days_worked = top_pair
+        years, months, days = convert_days_to_ymd(days_worked)
+        print(f"The pair of employees who worked together the longest are Employee {id_first} and Employee {id_second} with an overlap of {years} years, {months} months, and {days} days.")
+        print("\nCommon Projects:")
+        
+        print(f"{'Employee ID #1':<15} {'Employee ID #2':<15} {'Project ID':<12} {'Days worked':<12}")
+        for emp1, emp2, proj_id, days_worked in common_projects:
+            print(f"{emp1:<15} {emp2:<15} {proj_id:<12} {days_worked:<12}")
+    else:
+        print("No valid pairs found.")
+
+employees_who_worked_together_most(csv_file_path)
